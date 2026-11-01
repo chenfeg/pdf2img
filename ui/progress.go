@@ -14,7 +14,8 @@ import (
 
 const (
 	segmentCount = 24
-	barHeight    = 32
+	barHeight    = 20
+	barPaddingV  = 6
 )
 
 var (
@@ -40,14 +41,14 @@ func NewCoolProgressBar() *CoolProgressBar {
 	p := &CoolProgressBar{}
 	p.ExtendBaseWidget(p)
 
-	p.bg = canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
-	p.bg.CornerRadius = 8
+	p.bg = canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
+	p.bg.CornerRadius = barHeight / 2
 
 	p.glow = canvas.NewRectangle(color.Transparent)
-	p.glow.CornerRadius = 10
+	p.glow.CornerRadius = barHeight/2 + 2
 
 	p.fill = canvas.NewRectangle(colorStart)
-	p.fill.CornerRadius = 6
+	p.fill.CornerRadius = barHeight / 2
 
 	p.shimmer = make([]*canvas.Rectangle, segmentCount)
 	for i := range p.shimmer {
@@ -56,7 +57,7 @@ func NewCoolProgressBar() *CoolProgressBar {
 
 	p.label = canvas.NewText("0%", color.White)
 	p.label.Alignment = fyne.TextAlignCenter
-	p.label.TextSize = 14
+	p.label.TextSize = 12
 	p.label.TextStyle = fyne.TextStyle{Bold: true}
 
 	shimmerObjs := make([]fyne.CanvasObject, len(p.shimmer))
@@ -71,13 +72,13 @@ func NewCoolProgressBar() *CoolProgressBar {
 		container.NewWithoutLayout(shimmerObjs...),
 		container.NewCenter(p.label),
 	)
-	p.content.Resize(fyne.NewSize(300, barHeight+16))
+	p.content.Resize(fyne.NewSize(300, barHeight+barPaddingV*2))
 
 	return p
 }
 
 func (p *CoolProgressBar) MinSize() fyne.Size {
-	return fyne.NewSize(300, barHeight+16)
+	return fyne.NewSize(300, barHeight+barPaddingV*2)
 }
 
 func (p *CoolProgressBar) CreateRenderer() fyne.WidgetRenderer {
@@ -114,16 +115,16 @@ func (p *CoolProgressBar) updateVisuals() {
 	p.label.Text = fmt.Sprintf("%d%%", pct)
 	p.label.Refresh()
 
-	p.bg.Move(fyne.NewPos(2, 8))
+	p.bg.Move(fyne.NewPos(2, barPaddingV))
 	p.bg.Resize(fyne.NewSize(barW, barH))
 	p.bg.Refresh()
 
-	p.glow.Move(fyne.NewPos(0, 6))
+	p.glow.Move(fyne.NewPos(0, barPaddingV-2))
 	p.glow.Resize(fyne.NewSize(fillW+4, barH+4))
 	p.glow.FillColor = interpolateColor(colorGlow, color.NRGBA{R: 160, G: 60, B: 255, A: 80}, p.progress)
 	p.glow.Refresh()
 
-	p.fill.Move(fyne.NewPos(2, 8))
+	p.fill.Move(fyne.NewPos(2, barPaddingV))
 	p.fill.Resize(fyne.NewSize(fillW, barH))
 	p.fill.FillColor = interpolateColor(colorStart, colorEnd, p.progress)
 	p.fill.Refresh()
@@ -133,7 +134,7 @@ func (p *CoolProgressBar) updateVisuals() {
 		for i := 0; i < segmentCount; i++ {
 			t := float64(i) / float64(segmentCount-1)
 			sx := 2 + float32(i)*segW
-			p.shimmer[i].Move(fyne.NewPos(sx, 8))
+			p.shimmer[i].Move(fyne.NewPos(sx, barPaddingV))
 			p.shimmer[i].Resize(fyne.NewSize(segW+1, barH))
 			c := interpolateColor(colorStart, colorEnd, t*p.progress)
 			alpha := uint8(20 + 20*math.Sin(t*math.Pi*2+p.progress*math.Pi*4))

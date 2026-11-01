@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PDF 转图片工具 — 界面设计原型</title>
+<style>
+  :root {
+    --bg: #14171D;
+    --card-bg: #1E222A;
+    --card-border: #323843;
+    --title: #8E98AB;
+    --text: #E8ECF3;
+    --text-dim: #9AA4B5;
+    --btn: #2A2F3A;
+    --btn-hover: #343A47;
+    --primary: #4C8DFF;
+    --input-bg: #22262E;
+    --grad-start: #00C8FF;
+    --grad-end: #A03CFF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0B0D11;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 4px;
+  }
+  .window {
+    width: 880px; height: 620px;
+    background: var(--bg);
+    border-radius: 14px;
+    border: 1px solid #262B34;
+    box-shadow: 0 24px 64px rgba(0,0,0,.55);
+    padding: 20px 22px;
+    display: flex; flex-direction: column;
+    color: var(--text);
+  }
+  /* 顶部标题 */
+  .header { display: flex; align-items: center; gap: 12px; }
+  .header .icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; color: #fff; font-weight: 700;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+  .header p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  /* 卡片 */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 13px 16px 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  }
+  .card .card-title {
+    font-size: 13px; font-weight: 700; color: var(--title);
+    letter-spacing: .5px; margin-bottom: 10px;
+  }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row .path {
+    flex: 1; font-size: 13px; color: var(--text-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row .path.filled { color: var(--text); }
+
+  /* 按钮 */
+  .btn {
+    border: none; border-radius: 7px; cursor: pointer;
+    background: var(--btn); color: var(--text);
+    font-size: 13px; padding: 8px 14px;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--btn-hover); }
+  .btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+  .btn-primary {
+    width: 100%; justify-content: center;
+    background: linear-gradient(90deg, #3D8BFF, #6E6CFF);
+    color: #fff; font-size: 14.5px; font-weight: 700;
+    padding: 12px 0; border-radius: 9px;
+    box-shadow: 0 4px 14px rgba(76,141,255,.35);
+  }
+  .btn-primary:hover { filter: brightness(1.08); background: linear-gradient(90deg, #3D8BFF, #6E6CFF); }
+
+  /* 表单 */
+  .form-row { display: flex; align-items: center; margin-bottom: 10px; }
+  .form-row label { width: 64px; font-size: 13px; color: var(--text-dim); }
+  .select, .input {
+    background: var(--input-bg); border: 1px solid var(--card-border);
+    border-radius: 7px; color: var(--text); font-size: 13px;
+    padding: 7px 10px; outline: none; width: 220px;
+  }
+  .input { flex: 1; }
+  .select { appearance: none; cursor: pointer; }
+  .note { font-size: 11.5px; color: var(--text-dim); font-style: italic; }
+
+  /* 进度条 */
+  .bar-outer {
+    height: 20px; border-radius: 10px;
+    background: var(--input-bg);
+    position: relative; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; width: 62%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+    box-shadow: 0 0 12px rgba(110,108,255,.55);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill::after {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 6px, transparent 6px 24px);
+  }
+  .bar-pct {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .status { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 9px; }
+
+  .spacer { flex: 1; }
+  .gap-14 { height: 14px; } .gap-12 { height: 12px; }
+</style>
+</head>
+<body>
+<div class="window">
+  <!-- 顶部标题区 -->
+  <div class="header">
+    <div class="icon">PDF</div>
+    <div>
+      <h1>PDF 转图片工具</h1>
+      <p>将 PDF 页面合并为一张长图，自动去除页面间留白</p>
+    </div>
+  </div>
+
+  <div class="gap-14"></div>
+
+  <!-- PDF 文件 -->
+  <div class="card">
+    <div class="card-title">PDF 文件</div>
+    <div class="row">
+      <button class="btn">
+        <svg viewBox="0 0 16 16"><path d="M3 1h7l3 3v11H3V1zm7 1.5V5h2.5L10 2.5z"/></svg>
+        选择 PDF 文件
+      </button>
+      <span class="path filled">产品需求文档-v2.3.pdf</span>
+    </div>
+  </div>
+
+  <div class="gap-12"></div>
+
+  <!-- 保存位置 -->
+  <div class="card">
+    <div class="card-title">保存位置</div>
+    <div class="row">
+      <button class="btn">
+        <svg viewBox="0 0 16 16"><path d="M1 3h5l1.5 2H15v8H1V3zm1 2v6h12V7H2z"/></svg>
+        选择保存目录
+      </button>
+      <span class="path filled">D:\Documents\导出图片</span>
+    </div>
+  </div>
+
+  <div class="gap-12"></div>
+
+  <!-- 输出设置 -->
+  <div class="card">
+    <div class="card-title">输出设置</div>
+    <div class="form-row">
+      <label>格式</label>
+      <select class="select"><option>PNG</option><option>JPG</option><option>JPEG</option></select>
+    </div>
+    <div class="form-row">
+      <label>文件名</label>
+      <input class="input" value="产品需求文档-v2.3">
+    </div>
+    <div class="note">* 同名图片文件将被直接覆盖</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- 开始转换 -->
+  <button class="btn btn-primary">
+    <svg viewBox="0 0 16 16"><path d="M4 2l9 6-9 6V2z"/></svg>
+    开始转换
+  </button>
+
+  <div class="gap-12"></div>
+
+  <!-- 转换进度 -->
+  <div class="card">
+    <div class="card-title">转换进度</div>
+    <div class="bar-outer">
+      <div class="bar-fill"></div>
+      <div class="bar-pct">62%</div>
+    </div>
+    <div class="status">正在处理第 5/8 页...</div>
+  </div>
+</div>
+</body>
+</html>

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +21,7 @@ import (
 
 func main() {
 	a := app.NewWithID("com.pdf2img.app")
-	a.Settings().SetTheme(theme.DarkTheme())
+	a.Settings().SetTheme(newModernTheme())
 
 	w := a.NewWindow("PDF 转图片工具")
 	w.SetIcon(appIcon)
@@ -53,7 +52,7 @@ func main() {
 	})
 	formatSelect.SetSelected("PNG")
 
-	pdfBtn := widget.NewButton("选择PDF文件", func() {
+	pdfBtn := widget.NewButtonWithIcon("选择 PDF 文件", theme.FileTextIcon(), func() {
 		go func() {
 			path, err := nativeSelectPDF()
 			if err != nil {
@@ -72,7 +71,7 @@ func main() {
 		}()
 	})
 
-	folderBtn := widget.NewButton("选择保存目录", func() {
+	folderBtn := widget.NewButtonWithIcon("选择保存目录", theme.FolderOpenIcon(), func() {
 		go func() {
 			path, err := nativeSelectFolder()
 			if err != nil {
@@ -88,7 +87,7 @@ func main() {
 	})
 
 	var convertBtn *widget.Button
-	convertBtn = widget.NewButton("开始转换", func() {
+	convertBtn = widget.NewButtonWithIcon("开始转换", theme.MediaPlayIcon(), func() {
 		if pdfPath == "" {
 			dialog.ShowError(fmt.Errorf("请先选择PDF文件"), w)
 			return
@@ -115,13 +114,28 @@ func main() {
 	})
 	convertBtn.Importance = widget.HighImportance
 
+	// 顶部标题区
+	titleIcon := canvas.NewImageFromResource(appIcon)
+	titleIcon.FillMode = canvas.ImageFillContain
+	titleIcon.SetMinSize(fyne.NewSize(34, 34))
+
+	titleText := canvas.NewText("PDF 转图片工具", theme.Color(theme.ColorNameForeground))
+	titleText.TextStyle = fyne.TextStyle{Bold: true}
+	titleText.TextSize = 18
+
+	subtitleText := canvas.NewText("将 PDF 页面合并为一张长图，自动去除页面间留白", ui.CardTitle)
+	subtitleText.TextSize = 12
+
+	header := container.NewBorder(nil, nil, titleIcon, nil,
+		container.NewVBox(titleText, subtitleText))
+
 	// PDF 文件区域
 	pdfRow := container.NewBorder(nil, nil, pdfBtn, nil, pdfLabel)
-	pdfCard := widget.NewCard("PDF 文件", "", pdfRow)
+	pdfCard := ui.NewCard("PDF 文件", pdfRow)
 
 	// 保存位置区域
 	folderRow := container.NewBorder(nil, nil, folderBtn, nil, folderLabel)
-	folderCard := widget.NewCard("保存位置", "", folderRow)
+	folderCard := ui.NewCard("保存位置", folderRow)
 
 	// 输出设置区域
 	overwriteNote := widget.NewLabel("* 同名图片文件将被直接覆盖")
@@ -131,25 +145,30 @@ func main() {
 		widget.NewFormItem("文件名", fileName),
 	)
 	outputContent := container.NewVBox(outputForm, overwriteNote)
-	outputCard := widget.NewCard("输出设置", "", outputContent)
+	outputCard := ui.NewCard("输出设置", outputContent)
 
-	// 主布局
-	gap1 := canvas.NewRectangle(color.Transparent)
-	gap1.SetMinSize(fyne.NewSize(0, 6))
-	gap2 := canvas.NewRectangle(color.Transparent)
-	gap2.SetMinSize(fyne.NewSize(0, 6))
+	// 底部操作区：转换按钮 + 进度 + 状态
+	statusLabel.Alignment = fyne.TextAlignCenter
+	progressContent := container.NewVBox(
+		container.NewGridWithColumns(1, progressBar),
+		ui.NewVSpacer(4),
+		statusLabel,
+	)
+	progressCard := ui.NewCard("转换进度", progressContent)
 
-	form := container.NewVBox(
+	form := container.NewPadded(container.NewVBox(
+		header,
+		ui.NewVSpacer(14),
 		pdfCard,
-		gap1,
+		ui.NewVSpacer(12),
 		folderCard,
-		gap2,
+		ui.NewVSpacer(12),
 		outputCard,
 		layout.NewSpacer(),
 		container.NewGridWithColumns(1, convertBtn),
-		container.NewPadded(container.NewGridWithColumns(1, progressBar)),
-		container.NewPadded(statusLabel),
-	)
+		ui.NewVSpacer(12),
+		progressCard,
+	))
 
 	w.SetContent(form)
 	w.ShowAndRun()
