@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -25,8 +25,6 @@ func main() {
 
 	w := a.NewWindow("PDF 转图片工具")
 	w.SetIcon(appIcon)
-	w.Resize(fyne.NewSize(880, 620))
-	w.CenterOnScreen()
 
 	checkDLL(w)
 
@@ -147,7 +145,7 @@ func main() {
 	outputContent := container.NewVBox(outputForm, overwriteNote)
 	outputCard := ui.NewCard("输出设置", outputContent)
 
-	// 底部操作区：转换按钮 + 进度 + 状态
+	// 底部操作区：转换按钮 + 进度 + 状态（固定在窗口底部，始终可见）
 	statusLabel.Alignment = fyne.TextAlignCenter
 	progressContent := container.NewVBox(
 		container.NewGridWithColumns(1, progressBar),
@@ -156,22 +154,101 @@ func main() {
 	)
 	progressCard := ui.NewCard("转换进度", progressContent)
 
-	form := container.NewPadded(container.NewVBox(
-		header,
-		ui.NewVSpacer(14),
+	headerArea := container.NewVBox(header, ui.NewVSpacer(14))
+	bottomArea := container.NewVBox(
+		container.NewGridWithColumns(1, convertBtn),
+		ui.NewVSpacer(12),
+		progressCard,
+	)
+
+	// 中部卡片区放入滚动容器：窗口高度受限时卡片可滚动，头部与底部按钮不会被裁掉
+	cardsColumn := container.NewVBox(
 		pdfCard,
 		ui.NewVSpacer(12),
 		folderCard,
 		ui.NewVSpacer(12),
 		outputCard,
-		layout.NewSpacer(),
-		container.NewGridWithColumns(1, convertBtn),
-		ui.NewVSpacer(12),
-		progressCard,
-	))
+	)
+	cardsScroll := container.NewVScroll(cardsColumn)
+
+	form := container.NewPadded(container.NewBorder(headerArea, bottomArea, nil, nil, cardsScroll))
 
 	w.SetContent(form)
-	w.ShowAndRun()
+
+	// 以内容最小高度为基准决定窗口高度，并夹在屏幕可用区域内
+	desiredHeight := 2*theme.Padding() +
+		headerArea.MinSize().Height +
+		cardsColumn.MinSize().Height +
+		bottomArea.MinSize().Height
+	appliedHeight := fitWindowToContent(w, desiredHeight, 0)
+
+	w.CenterOnScreen()
+	w.Show()
+
+	// 窗口创建后缩放比例、标题栏高度与实际布局尺寸才确定；再以实际卡区高度为准校正一次，
+	// 让内容无需滚动即可完整显示，同时仍夹在屏幕可用区域内
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		shortfall := cardsColumn.MinSize().Height - cardsScroll.Size().Height
+		if shortfall > 0 {
+			// 额外留 1 个逻辑像素余量，避免亚像素级溢出导致滚动条常驻
+			desiredHeight += shortfall + 1
+		}
+		appliedHeight = fitWindowToContent(w, desiredHeight, appliedHeight)
+		w.CenterOnScreen()
+	}()
+
+	a.Run()
+}
+
+const (
+	windowWidth     float32 = 880 // 视觉基准宽度
+	windowMinHeight float32 = 420
+	// 窗口装饰（标题栏、边框）与任务栏重叠余量，计算可用高度时需扣除
+	windowDecorationPixels float32 = 128
+)
+
+// fitWindowToContent 以内容最小高度为基准设置窗口高度，并夹在屏幕可用区域内。
+// applied 为上一次请求的窗口外框高度：窗口创建后用它推算标题栏/边框占用的高度，
+// 使内容区高度正好等于 contentHeight，避免把装饰高度硬编码成常量。
+// 返回本次请求的外框高度。
+func fitWindowToContent(w fyne.Window, contentHeight, applied float32) float32 {
+	h := contentHeight
+	if cs := w.Canvas().Size(); applied > 0 && cs.Height > 0 && applied > cs.Height {
+		h += applied - cs.Height
+	}
+	if maxH := maxWindowHeight(w); maxH > 0 && h > maxH {
+		h = maxH
+	}
+	if h < windowMinHeight {
+		h = windowMinHeight
+	}
+	w.Resize(fyne.NewSize(windowWidth, h))
+	return h
+}
+
+// maxWindowHeight 返回窗口外框可用的最大高度（逻辑像素），0 表示无法获取屏幕信息
+func maxWindowHeight(w fyne.Window) float32 {
+	_, screenH := usableScreenSize()
+	if screenH <= 0 {
+		return 0
+	}
+	scale := w.Canvas().Scale()
+	if scale <= 1 {
+		// 窗口尚未创建时 canvas scale 还是默认值 1，用系统 DPI 与用户缩放设置估算
+		scale = systemDPIScale()
+		if us := fyne.CurrentApp().Settings().Scale(); us > 0 {
+			scale *= us
+		}
+	}
+	if scale <= 0 {
+		scale = 1
+	}
+	h := (float32(screenH) - windowDecorationPixels) / scale
+	if h < windowMinHeight {
+		return 0
+	}
+	return h
 }
 
 func checkDLL(w fyne.Window) {
