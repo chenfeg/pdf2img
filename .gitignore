@@ -7,6 +7,10 @@
 # Test files
 test_sample.pdf
 
+# Test evidence
+_uitest_out/
+_uitest_shots/
+
 # OS files
 .DS_Store
 Thumbs.db
